@@ -83,7 +83,7 @@ def load_model(step):
         if k.startswith("module."):
             k = k[7:]
         parsed_dict[k] = v
-    model.load_state_dict(parsed_dict)
+    model.load_state_dict(parsed_dict, strict=True) #strict=False 表示不严格检查模型参数是否匹配
     return model
 
 
@@ -278,8 +278,10 @@ def inference(
             pkl_data = pickle.load(open(pkl, "rb"))
             if "representations" in pkl_data:
                 pkl_data = pkl_data["representations"]
-            single_repr = torch.from_numpy(pkl_data["single"]).float()
-            pair_repr = torch.from_numpy(pkl_data["pair"]).float()
+            #single_repr = torch.from_numpy(pkl_data["single"]).float()
+            #pair_repr = torch.from_numpy(pkl_data["pair"]).float()
+            single_repr = torch.as_tensor(pkl_data["single"], dtype=torch.float)
+            pair_repr = torch.as_tensor(pkl_data["pair"], dtype=torch.float)
             seq = open(fasta, "r").readlines()[1].strip()
             assert len(seq) == single_repr.shape[0]
 
@@ -290,7 +292,7 @@ def inference(
 
             if init_state is not None:
                 init_data = np.load(init_state)
-                tr_init = torch.from_numpy(init_data["tr"]).float()
+                tr_init = torch.from_numpy(init_data["tr"]).float() * 10
                 rot_mat_init = torch.from_numpy(init_data["rot_mat"]).float()
             else:
                 tr_init = None
