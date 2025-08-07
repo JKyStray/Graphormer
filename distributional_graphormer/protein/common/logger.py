@@ -2,15 +2,19 @@ from datetime import datetime
 
 
 class Logger:
-    def __init__(self, path, rotate_size=2e6, buffer_size=4e3):
+    def __init__(self, path, rotate_size=2e6, buffer_size=4e3, console=True):
         self._path = path
         self._rotate_size = rotate_size
         self._buffer_size = buffer_size
+        self._console = console
 
         self._file = None
         self._buffer = ""
 
     def info(self, msg):
+        if self._console:
+            print(msg)
+        
         self._buffer += msg + "\n"
         if len(self._buffer) > self._buffer_size:
             self.flush()
@@ -24,8 +28,9 @@ class Logger:
         if self._file is None or self._rotate_fn(msg):
             self._init_file()
 
-        with open(self._file, "a") as fp:
-            fp.write(msg)
+        if self._file:
+            with open(self._file, "a") as fp:
+                fp.write(msg)
 
     def _prepare_new_path(self):
         if self._rotate_size is None:
@@ -40,5 +45,6 @@ class Logger:
     def _rotate_fn(self, msg):
         return (
             self._rotate_size is not None
+            and self._file is not None
             and self._file.stat().st_size + len(msg) > self._rotate_size
         )
