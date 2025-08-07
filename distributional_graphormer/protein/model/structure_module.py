@@ -136,7 +136,8 @@ class SAAttention(nn.Module):
 
         out_scalar = torch.einsum("bhij,bjhc->bihc", attn, v_scalar)
         out_scalar = out_scalar.reshape(*out_scalar.shape[:2], -1)
-        with torch.cuda.amp.autocast(enabled=False):
+        #with torch.cuda.amp.autocast(enabled=False):
+        with torch.amp.autocast(device_type='cuda', enabled=False):
             out_point_global = torch.einsum(
                 "bhij,bjhcp->bihcp", attn.float(), v_point_global.float()
             )

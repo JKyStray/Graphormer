@@ -12,6 +12,7 @@ from .positional_encoding import RelativePositionBias
 from .structure_module import StructureModule
 
 
+
 class SinusoidalPositionEmbeddings(nn.Module):
     """
     Implements sinusoidal position embeddings similar to those used in the Transformer architecture.
@@ -46,6 +47,76 @@ class SinusoidalPositionEmbeddings(nn.Module):
         embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1)
         embeddings = embeddings.to(self.dummy.dtype)
         return embeddings
+
+
+# --- Adaptor Model Definitions ---
+
+class ResidualBlock(nn.Module):
+    """A residual block for models where input and output dimensions are the same."""
+    def __init__(self, dim):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.LayerNorm(dim),
+            nn.Linear(dim, dim * 2),
+            nn.ReLU(),
+            nn.Linear(dim * 2, dim),
+        )
+
+    def forward(self, x):
+        return x + self.net(x)
+
+class TransformerAdaptor(nn.Module):
+    """A Transformer-based adaptor for sequential data."""
+    def __init__(self, input_dim, output_dim, nhead=8, num_layers=2):
+        super().__init__()
+        self.input_proj = nn.Linear(input_dim, output_dim)
+        self.norm = nn.LayerNorm(output_dim)
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=output_dim, nhead=nhead, batch_first=True
+        )
+        self.transformer_encoder = nn.TransformerEncoder(
+            encoder_layer, num_layers=num_layers
+        )
+
+    def forward(self, x):
+        x = self.input_proj(x)
+        x = self.norm(x)
+        x = self.transformer_encoder(x)
+        return x
+
+class CnnAdaptor(nn.Module):
+    """A 1D CNN-based adaptor for sequential data."""
+    def __init__(self, input_dim, hidden_dim, output_dim, kernel_size=5):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Conv1d(in_channels=input_dim, out_channels=hidden_dim, kernel_size=kernel_size, padding="same"),
+            nn.ReLU(),
+            nn.Conv1d(in_channels=hidden_dim, out_channels=output_dim, kernel_size=kernel_size, padding="same")
+        )
+
+    def forward(self, x):
+        # input: (B, S, E_in) -> permute to (B, E_in, S) for Conv1d
+        x = x.permute(0, 2, 1)
+        x = self.net(x)
+        # permute back to (B, S, E_out)
+        return x.permute(0, 2, 1)
+
+class CnnAdaptorPair(nn.Module):
+    """A 2D CNN-based adaptor for pair representation data."""
+    def __init__(self, input_dim, hidden_dim, output_dim, kernel_size=5):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Conv2d(in_channels=input_dim, out_channels=hidden_dim, kernel_size=kernel_size, padding="same"),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=hidden_dim, out_channels=output_dim, kernel_size=kernel_size, padding="same")
+        )
+
+    def forward(self, x):
+        # input: (B, S, S, E_in) -> permute to (B, E_in, S, S) for Conv2d
+        x = x.permute(0, 3, 1, 2)
+        x = self.net(x)
+        # permute back to (B, S, S, E_out)
+        return x.permute(0, 3, 2, 1)
 
 
 class MainModel(BaseModel):
@@ -107,6 +178,57 @@ class MainModel(BaseModel):
             dropout=0.1,
         )
 
+# --- tFold adapter: map 192-dim tFold single_repr to 384-dim expected by Graphormer ---
+        #self.tfold_expand = nn.Linear(192, 384, bias=True)
+        #self.tfold_expand = nn.Sequential(nn.LayerNorm(192), nn.Linear(192, 384, bias=True))
+        #self.tfold_expand_pair = nn.Sequential(nn.LayerNorm(128), nn.Linear(128, 128, bias=True))
+        # self.tfold_expand = nn.Sequential(nn.LayerNorm(192), nn.Linear(192, 512), nn.ReLU(), nn.Linear(512, 384, bias=True))
+        # self.tfold_expand_pair = nn.Sequential(nn.LayerNorm(128), nn.Linear(128, 256), nn.ReLU(), nn.Linear(256, 128, bias=True))
+        
+        # --- tFold adaptor definitions ---
+        tfold_single_dim = 192
+        evo2_single_dim = 384
+        pair_dim = 128
+
+        # --- Option 1: Deeper MLP with Residual Connections (ACTIVE) test3---
+        # This is a good default choice, balancing model capacity and stability.
+        # self.tfold_expand = nn.Sequential(
+        #     nn.LayerNorm(tfold_single_dim),
+        #     nn.Linear(tfold_single_dim, evo2_single_dim),
+        #     ResidualBlock(evo2_single_dim),
+        #     nn.ReLU(),
+        #     ResidualBlock(evo2_single_dim)
+        # )
+        # self.tfold_expand_pair = nn.Sequential(
+        #     nn.LayerNorm(pair_dim),
+        #     ResidualBlock(pair_dim),
+        #     nn.ReLU(),
+        #     ResidualBlock(pair_dim)
+        # )
+        
+        # --- Option 2: Transformer-based Adaptor (Commented out) test4---
+        # Most powerful for sequential data, but also most complex.
+        # self.tfold_expand = TransformerAdaptor(
+        #     input_dim=tfold_single_dim, output_dim=evo2_single_dim, nhead=8, num_layers=2
+        # )
+        # self.tfold_expand_pair = nn.Sequential( # Using ResNet for pair as Transformer is for 1D sequences
+        #     nn.LayerNorm(pair_dim), ResidualBlock(pair_dim), nn.ReLU(), ResidualBlock(pair_dim)
+        # )
+
+        # --- Option 3: CNN-based Adaptor (Commented out) ---
+        # Good for detecting local patterns, computationally efficient.
+        # self.tfold_expand = CnnAdaptor(
+        #     input_dim=tfold_single_dim, hidden_dim=512, output_dim=evo2_single_dim
+        # )
+        # self.tfold_expand_pair = CnnAdaptorPair(
+        #     input_dim=pair_dim, hidden_dim=256, output_dim=pair_dim
+        # )
+
+        # --- Option 4: Original Simple MLP (Commented out) ---
+        self.tfold_expand = nn.Sequential(nn.LayerNorm(192), nn.Linear(192, 384), nn.ReLU(), nn.Linear(384, 512), nn.ReLU(), nn.Linear(512, 384, bias=True))
+        self.tfold_expand_pair = nn.Sequential(nn.LayerNorm(128), nn.Linear(128, 256), nn.ReLU(), nn.Linear(256, 128, bias=True))
+
+
     def init_diffusion_params(self):
         """
         Initializes parameters for the diffusion process.
@@ -142,6 +264,10 @@ class MainModel(BaseModel):
                 - IR_eps: [batch_size, seq_length, 3] predicted rotation noise
         """
         # Project single residue features and add timestep embeddings
+        # --- tFold adapter: expand 192-dim tFold single_repr to 384-dim expected by Graphormer ---
+        single_repr = self.tfold_expand(single_repr)
+        pair_repr = self.tfold_expand_pair(pair_repr)
+        
         x1d = self.x1d_proj(single_repr) + self.step_emb(step)[:, None] #Linear(LayerNorm(h_i)) + Sinusoidal(...)
         # Project pair features
         x2d = self.x2d_proj(pair_repr) #LinearNoBias(LayerNorm(z_ij))
@@ -194,7 +320,7 @@ class MainModel(BaseModel):
         Converts timesteps to noise levels (sigmas) for both translation and rotation.
         Uses an exponential schedule for smooth transitions.
         """
-        t = self.t_schedule[time_step].to(device)
+        t = self.t_schedule[time_step.cpu()].to(device)
         # Calculate translation sigma using exponential interpolation
         T_sigma = (self.tr_sigma_min ** (1 - t)) * (self.tr_sigma_max ** (t))
         # Calculate rotation sigma using exponential interpolation
