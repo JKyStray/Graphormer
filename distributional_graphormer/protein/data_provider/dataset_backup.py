@@ -66,6 +66,41 @@ def detect_data_format(npz_data):
         raise ValueError(f"Unknown data format. Keys found: {list(npz_data.keys())}")
 
 
+def create_dummy_cbcb_distances(L, avg_distance=8.0, noise_std=2.0):
+    """
+    NEW
+    
+    Create a dummy CB-CB distance matrix for when we don't have coordinate data.
+    
+    Args:
+        L: Sequence length
+        avg_distance: Average distance between residues
+        noise_std: Standard deviation for distance noise
+        
+    Returns:
+        np.ndarray: [L, L] distance matrix
+    """
+    # Create base distance matrix with sequence separation bias
+    i, j = np.meshgrid(np.arange(L), np.arange(L), indexing='ij')
+    seq_sep = np.abs(i - j)
+    
+    # Base distances: closer for nearby residues, farther for distant ones
+    base_distances = avg_distance + 0.5 * seq_sep
+    
+    # Add some noise to make it more realistic
+    noise = np.random.normal(0, noise_std, (L, L))
+    distances = base_distances + noise
+    
+    # Ensure symmetry and positive distances
+    distances = (distances + distances.T) / 2
+    distances = np.maximum(distances, 1.0)  # Minimum distance of 1.0 Å
+    
+    # Diagonal should be 0
+    np.fill_diagonal(distances, 0.0)
+    
+    return distances
+
+
 class LMDBDataset(Dataset):
     def __init__(self, db_path):
         self.db_path = db_path
@@ -89,7 +124,6 @@ class LMDBDataset(Dataset):
         CA -= center
         CB -= center
 
-        # Only calculate CB-CB distances for coordinate data (backward compatibility)
         pCB = pseudo_CB(seq, CB, CA)
         cbcb_dist = pairwise_distance(pCB)
         T = CA
@@ -155,26 +189,17 @@ class NPYReader:
             # New transformation matrix processing
             L = t["tr"].shape[0]  # Get sequence length from transformation data
             
-            # Scale transformation data from Angstroms to model's expected scale
-            # The model uses trans_scale_factor=10, so we need to scale up by 10
-            # to match the model's coordinate system where typical distances are ~10 units
-            scale_factor = 10.0  # Convert from Angstroms to model's scale
-            
-            # Scale and center the translation vectors (consistent with coordinate processing)
-            scaled_tr = t["tr"] * scale_factor
-            center = np.nanmean(scaled_tr, axis=0)  # Calculate center across all residues
-            centered_tr = scaled_tr - center
-            
-            # For transformation matrix format, store the transformation data
+            # For transformation matrix format, we create a minimal coordinate structure
+            # The important data (T, IR) will be overridden later from tr/rot_mat
             item = {
                 "seq": "." * L,  # make pseudo_CB happy
                 "N": np.zeros((L, 3)),    # dummy coordinates
                 "C": np.zeros((L, 3)),    # dummy coordinates  
-                "CA": centered_tr,            # Use centered translation vectors as CA coordinates
-                "CB": centered_tr,            # Use centered translation vectors as CB coordinates
+                "CA": t["tr"],            # Use translation vectors as CA coordinates
+                "CB": t["tr"],            # Use translation vectors as CB coordinates (will be overridden)
                 "_transformation_data": {  # Store transformation matrices for later use
-                    "T": centered_tr,         # Store the centered translation vectors
-                    "IR": t["rot_mat"],       # Rotation matrices don't need scaling
+                    "T": t["tr"],
+                    "IR": t["rot_mat"],
                     "L": L
                 }
             }
@@ -210,9 +235,8 @@ class NPYDataset(LMDBDataset):
             IR = trans_data["IR"] 
             L = trans_data["L"]
             
-            # Create a dummy CB-CB distance matrix (zeros) for backward compatibility
-            # Since models don't actually use this, we just need the right shape
-            cbcb_dist = np.zeros((L, L))
+            # Create dummy CB-CB distances since we don't have coordinate data
+            cbcb_dist = create_dummy_cbcb_distances(L)
             
         else:
             # Handle coordinate format (original processing)
