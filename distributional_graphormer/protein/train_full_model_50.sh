@@ -16,21 +16,21 @@
 # echo ""
 
 # 使用基础检查点直接训练
-CHECKPOINT_PATH="checkpoints/checkpoint-520k.pth"
+CHECKPOINT_PATH="checkpoints/checkpoint-520k-direct-new-test2.pth"
 
 echo ""
 echo "📋 训练配置:"
 echo "  - 源检查点: $CHECKPOINT_PATH"
-echo "  - 目标检查点: checkpoints/checkpoint-520k-large-data-v1.pth"
-echo "  - 训练轮数: 50 epochs "
-echo "  - 学习率: 8e-4 (激进学习率)"
+echo "  - 目标检查点: checkpoints/checkpoint-520k-direct-new-further.pth"
+echo "  - 训练轮数: 25 epochs "
+echo "  - 学习率: 1e-4 (激进学习率)"
 echo "  - max_tokens_per_gpu: 1024 (保持内存安全)"  
 echo "  - 梯度累积: 1步 (最频繁更新)"
-echo "  - 每轮批次数: 5000 (大量训练数据)"
+echo "  - 每轮批次数: 20000 (大量训练数据)"
 echo "  - 有效批次大小: 1 × 1 = 1"
-echo "  - 总训练步数: 50 × 5000 ÷ 1 = 250000 权重更新"
-echo "  - 日志频率: 每30步记录一次 (频繁监控)"
-echo "  - 权重衰减: 1e-7 (极小正则化)"
+echo "  - 总训练步数: 25 × 20000 ÷ 1 = 500000 权重更新"
+echo "  - 日志频率: 每1000步记录一次 (频繁监控)"
+echo "  - 权重衰减: 0 (极小正则化)"
 echo ""
 
 # 显示GPU信息
@@ -47,28 +47,28 @@ echo ""
 
 # 运行训练 - 使用极激进的超参数
 python train_full_model.py \
-    --epochs 50 \
-    --lr 8e-4 \
-    --weight_decay 1e-7 \
+    --epochs 25 \
+    --lr 1e-5 \
+    --weight_decay 0 \
     --max_tokens_per_gpu 1024 \
     --gradient_accumulation 1 \
-    --batches_per_epoch 5000 \
-    --log_freq 100 \
+    --batches_per_epoch 20000 \
+    --log_freq 1000 \
     --checkpoint_path "$CHECKPOINT_PATH" \
-    --save_path "checkpoints/checkpoint-520k-large-data-v1.pth"
+    --save_path "checkpoints/checkpoint-520k-direct-new-further.pth"
 
 # 检查训练结果
 if [ $? -eq 0 ]; then
     echo ""
     echo "🎉 训练成功完成！"
-    echo "📁 模型保存在: checkpoints/checkpoint-520k-large-data-v1.pth"
+    echo "📁 模型保存在: checkpoints/checkpoint-520k-direct-new-further.pth"
     echo ""
     echo "📊 训练总结:"
-    echo "   ✅ 50个epoch × 5000批次 = 250000个训练批次"
-    echo "   ✅ 总计250000次权重更新"
-    echo "   ✅ 激进学习率: 8e-4"
+    echo "   ✅ 25个epoch × 20000批次 = 500000个训练批次"
+    echo "   ✅ 总计500000次权重更新"
+    echo "   ✅ 学习率: 1e-5"
     echo "   ✅ 最小梯度累积: 1步"
-    echo "   ✅ 极小权重衰减: 1e-7"
+    echo "   ✅ 极小权重衰减: 0"
     
     # 显示所有相关文件
     echo ""

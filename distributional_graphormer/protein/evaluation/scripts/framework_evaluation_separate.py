@@ -162,8 +162,8 @@ def calculate_rmsd_for_chains(reference_A_ca, reference_B_ca, pdb_files_dir, out
         print("No valid PDBs processed.")
 
 if __name__ == "__main__":
-    reference_name = "DMF5"
-    inference_folder_name = "output_DMF5_adaptor_test5_centered_0805"
+    reference_name = "1mi5"
+    inference_folder_name = "output_1mi5_rm29_evo_0821"
     
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.abspath(os.path.join(current_dir, '..'))
@@ -174,7 +174,7 @@ if __name__ == "__main__":
     
     pdb_files_dir = os.path.expanduser(f"~/Graphormer/distributional_graphormer/protein/{inference_folder_name}/")
     
-    output_csv = os.path.join(current_dir, f"../output/evaluation_{inference_folder_name}_framework_separate.csv")
+    output_csv = os.path.join(current_dir, f"../csv_output/evaluation_{inference_folder_name}_framework_separate.csv")
 
     if not os.path.exists(pdb_files_dir):
         raise FileNotFoundError(f"Input directory not found: {pdb_files_dir}")

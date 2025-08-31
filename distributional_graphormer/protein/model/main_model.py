@@ -228,6 +228,10 @@ class MainModel(BaseModel):
         self.tfold_expand = nn.Sequential(nn.LayerNorm(192), nn.Linear(192, 384), nn.ReLU(), nn.Linear(384, 512), nn.ReLU(), nn.Linear(512, 384, bias=True))
         self.tfold_expand_pair = nn.Sequential(nn.LayerNorm(128), nn.Linear(128, 256), nn.ReLU(), nn.Linear(256, 128, bias=True))
 
+        # Option 5: Legacy tFold adaptor ---
+        #self.tfold_expand = nn.Sequential(nn.LayerNorm(192), nn.Linear(192, 384, bias=False))
+        #self.tfold_expand_pair = nn.Sequential(nn.LayerNorm(128), nn.Linear(128, 128, bias=True))
+
 
     def init_diffusion_params(self):
         """
