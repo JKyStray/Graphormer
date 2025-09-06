@@ -1,23 +1,3 @@
-"""
-The framework mask, as example, is 
-~/Graphormer/distributional_graphormer/protein/evaluation/a6_framework_mask.npy
-
-For you to understand the structure, the reference pdb is 
-~/Graphormer/distributional_graphormer/protein/evaluation/A6_MD_init_linked_imgt.pdb, 
-
-The inference output to evaluate is in
-~/Graphormer/distributional_graphormer/protein/output_a6_adaptor_test5_centered_0805/
-
-For the output, we want to have the following columns: 
-- pdb_file
-- original_framework_rmsd
-- A_chain_framework_rmsd
-- B_chain_framework_rmsd
-- total_framework_rmsd
-
-Please keep this comment block. 
-"""
-
 import numpy as np
 import os
 import glob

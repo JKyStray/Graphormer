@@ -1,31 +1,3 @@
-"""
-The script below is currently used to calculate overall rmsd and lDDT. 
-
-However, we want to make a change here: 
-
-Since the structure is actually a complex, linked with linker "GGGGSGGGGSGGGGS", we want to 
-calculate the rmsd for each of the two chains separately. 
-
-That is, for input pdb files and reference pdb, we want to first split the structure into two chains, 
-then calculate the rmsd for each chain separately. 
-
-We can delete the lDDT part for now. 
-
-The output should be a csv file with the following columns: 
-- pdb_file
-- A_chain_overall_rmsd
-- B_chain_overall_rmsd
-- total_rmsd
-
-For you to understand the structure, the reference pdb is 
-~/Graphormer/distributional_graphormer/protein/evaluation/A6_MD_init_linked_imgt.pdb, 
-
-The inference output to evaluate is in
-~/Graphormer/distributional_graphormer/protein/output_test3_0726/
-
-Please keep this comment block. 
-"""
-
 import numpy as np
 import os
 import glob
