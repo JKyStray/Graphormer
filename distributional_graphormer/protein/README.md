@@ -1,3 +1,5 @@
+Notice: Below is README for original DiG. You may download dataset and trained parameters for this project in the address provided in readme.txt in dataset or checkpoints directory. 
+
 #  DiG Protein System
 
 ## Dataset
