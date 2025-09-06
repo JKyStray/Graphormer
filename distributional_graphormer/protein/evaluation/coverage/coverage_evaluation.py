@@ -1,27 +1,3 @@
-"""
-We want to use this script to evaluate the coverage of the inference results. 
-
-we would like to mimic the MD emulation style from bioemu-benchmarks. 
-
-Our plan is to separately calculate coverage for each CDR. 
-
-Make sure you avoid common pitfalls like not aligning! 
-
-Files and directories:
-
-MD simulation results: ~/Graphormer/distributional_graphormer/protein/dataset/Mars2/raw/A6_2/pdb_structure/
-This contain about 10000 pdb files of A6. 
-
-Inference results: ~/Graphormer/distributional_graphormer/protein/output_A6_adaptor_test5_centered_0804/
-This contain 250 pdb files of A6 inferred by model. 
-
-CDR mask: ~/Graphormer/distributional_graphormer/protein/evaluation/a6_cdr_mask.npy
-This should be [sequence_length, ] where 1 means the residue is in the CDR. You should check 
-this file to make sure you understand the structure of this mask. 
-
-Please keep this comment block in the code. 
-"""
-
 from __future__ import annotations
 
 from pathlib import Path
